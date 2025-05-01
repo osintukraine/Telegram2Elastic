@@ -1,6 +1,6 @@
 import pytest
 
-from telegram2elastic import FileSize, DottedPathDict
+from telegram2elastic import FileSize, DottedPathDict, TimeInterval
 
 
 class TestFileSize:
@@ -29,3 +29,25 @@ class TestDottedPathDict:
 
         with pytest.raises(TypeError):
             dotted_path_dict.set("foo.bar.baz", "other value")
+
+
+class TestTimeInterval:
+    def test_parse(self):
+        assert TimeInterval.parse("1h1m").seconds == 60*60 + 60
+        assert TimeInterval.parse("1h5m").seconds == 60*60 + 60*5
+        assert TimeInterval.parse("1d").seconds == 60*60*24
+        assert TimeInterval.parse("1d3h10m").seconds == 60*60*24 + 60*60*3 + 60*10
+        assert TimeInterval.parse("1y2mo").seconds == 60*60*24*365 + 60*60*24*60
+        assert TimeInterval.parse("1mo2m").seconds == 60*60*24*30 + 60*2
+        assert TimeInterval.parse("2m1mo").seconds == 60*60*24*30 + 60*2
+
+    def test_format(self):
+        assert TimeInterval(1).format_human_readable() == "1 second"
+        assert TimeInterval(25).format_human_readable() == "25 seconds"
+        assert TimeInterval(60).format_human_readable() == "1 minute"
+        assert TimeInterval(90).format_human_readable() == "1 minute, 30 seconds"
+        assert TimeInterval(60*2).format_human_readable() == "2 minutes"
+        assert TimeInterval(60*60).format_human_readable() == "1 hour"
+        assert TimeInterval(60*60*24).format_human_readable() == "1 day"
+        assert TimeInterval(60*60*24*2).format_human_readable() == "2 days"
+        assert TimeInterval(60*60*24 + 60*60*12 + 60 + 35).format_human_readable() == "1 day, 12 hours, 1 minute, 35 seconds"

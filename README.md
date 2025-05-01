@@ -82,6 +82,34 @@ output_map:
   "message.translated": "translated_text"
 ```
 
+## Periodically import history
+
+In some cases you might want to periodically import the history while listening for messages.
+
+This feature is disabled by default but can be enabled by adding the following configuration to your `config.yml`:
+
+```yaml
+periodic_import:
+  interval: 1d
+  range: 7d
+```
+
+At least an interval is required. If no range is given, everything is imported.
+
+You might also specify multiple time units like "1d12h" which means "1 days and 12 hours".
+
+The following units are supported:
+
+| Unit | Meaning | Example |
+|------|---------|---------|
+| y    | Years   | 1y      |
+| mo   | Months  | 12mo    |
+| w    | Weeks   | 30w     |
+| d    | Days    | 7d      |
+| h    | Hours   | 24h     |
+| m    | Minutes | 60m     |
+| s    | Seconds | 60s     |
+
 ## Initial setup
 
 When started for the first time, the application will ask you to connect with your Telegram account.

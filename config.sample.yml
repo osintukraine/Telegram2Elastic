@@ -18,6 +18,17 @@ telegram:
     - <id 2>
     - ...
 
+# Periodically import history
+# The time properties support multiple units: y (years), mo (months), w (weeks), d (days), h (hours), m (minutes), s (seconds)
+# Those units can be combined, i.e. "1d12h" means "1 days and 12 hours".
+periodic_import:
+  # Interval between periodic imports
+  interval: 1d
+
+  # Range to import, e.g. 7d to import the last 7 days
+  # Omit to always import everything
+  range: 7d
+
 # Configure whether messages should be translated into the specified language
 # Use the two-letter ISO 639-1 language code (examples: "de", "en", "es", "it")
 # Omit or keep empty to disable translations

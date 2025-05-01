@@ -1,5 +1,9 @@
 # Changelog
 
+## [3.2.0] - pending
+
+* Optional periodic import of history while listening for messages
+
 ## [3.1.2] - 2023-11-08
 
 * Fixed crash if username, first_name or last_name of sender are not defined (thanks to @cololi)

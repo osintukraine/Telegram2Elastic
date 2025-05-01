@@ -14,7 +14,7 @@ from pathlib import Path
 
 import yaml
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from telethon import TelegramClient, events
 from telethon.tl import types
 from telethon.tl.functions.messages import TranslateTextRequest
@@ -82,6 +82,66 @@ class DottedPathDict(dict):
             node = node.setdefault(level, {})
 
         node[path_parts[-1]] = value
+
+
+class TimeInterval:
+    seconds: int
+
+    def __init__(self, seconds: int):
+        self.seconds = seconds
+
+    @staticmethod
+    def parse(string: str):
+        matches = re.findall(r"(\d+)(y|mo|w|d|h|m|s)", re.sub(r"[\s,_-]+", "", string.lower()))
+        if not matches:
+            return None
+
+        total_seconds = 0
+
+        for value, unit in matches:
+            value = int(value)
+
+            if unit == "y":
+                total_seconds += value * 365 * 24 * 3600
+            elif unit == "mo":
+                total_seconds += value * 30 * 24 * 3600
+            elif unit == "w":
+                total_seconds += value * 7 * 24 * 3600
+            elif unit == "d":
+                total_seconds += value * 24 * 3600
+            elif unit == "h":
+                total_seconds += value * 3600
+            elif unit == "m":
+                total_seconds += value * 60
+            elif unit == "s":
+                total_seconds += value
+
+        return TimeInterval(total_seconds)
+
+    def format_human_readable(self):
+        total_seconds = self.seconds
+        parts = []
+
+        units = [
+            ("year", 365 * 24 * 3600),
+            ("month", 30 * 24 * 3600),
+            ("week", 7 * 24 * 3600),
+            ("day", 24 * 3600),
+            ("hour", 3600),
+            ("minute", 60),
+            ("second", 1),
+        ]
+
+        for name, unit_seconds in units:
+            value, total_seconds = divmod(total_seconds, unit_seconds)
+            if value:
+                label = name if value == 1 else name + "s"
+                parts.append(f"{value} {label}")
+
+        return ", ".join(parts) if parts else "0 seconds"
+
+    def timedelta(self):
+        return timedelta(seconds=self.seconds)
 
 
 def json_default(value):
@@ -439,12 +499,7 @@ class TelegramReader:
         self.additional_chats = config.get("additional_chats", [])
         self.chat_types = config.get("chat_types", [])
 
-    async def import_history(self, start_date, chats):
-        if start_date:
-            offset_date = datetime.strptime(start_date, "%Y-%m-%d")
-        else:
-            offset_date = None
-
+    async def import_history(self, start_date: datetime = None, chats=None):
         if chats:
             chats = await self.client.get_entity(TelegramReader.prepare_chats(chats))
         else:
@@ -453,12 +508,12 @@ class TelegramReader:
         for chat in chats:
             display_name = get_display_name(chat)
 
-            if offset_date:
-                logging.log(LOG_LEVEL_INFO, "Importing history for chat '{}' starting at {}".format(display_name, offset_date.strftime("%c")))
+            if start_date:
+                logging.log(LOG_LEVEL_INFO, "Importing history for chat '{}' starting at {}".format(display_name, start_date.strftime("%c")))
             else:
                 logging.log(LOG_LEVEL_INFO, "Importing full history for chat '{}'".format(display_name))
 
-            async for message in self.client.iter_messages(chat, offset_date=offset_date, reverse=True):
+            async for message in self.client.iter_messages(chat, offset_date=start_date, reverse=True):
                 await self.output_handler.write_message(message, self.is_chat_enabled)
 
         logging.log(LOG_LEVEL_INFO, "Import finished")
@@ -478,6 +533,31 @@ class TelegramReader:
             await self.output_handler.write_message(event.message, self.is_chat_enabled)
 
         await self.client.catch_up()
+
+    async def periodic_import(self, config: dict):
+        interval = TimeInterval.parse(config.get("interval", "1d"))
+
+        time_range = config.get("range")
+        if time_range:
+            time_range = TimeInterval.parse(time_range)
+            time_range_string = time_range.format_human_readable()
+        else:
+            time_range = None
+            time_range_string = "all"
+
+        logging.log(LOG_LEVEL_INFO, f"Scheduling periodic import (interval: {interval.format_human_readable()}, range: {time_range_string})")
+
+        while True:
+            await asyncio.sleep(interval.seconds)
+
+            logging.log(LOG_LEVEL_INFO, "Starting periodic import")
+
+            start_date = None
+            if time_range:
+                start_date = datetime.now() - time_range.timedelta()
+            await self.import_history(start_date)
+
+            logging.log(LOG_LEVEL_INFO, f"Periodic import completed, next periodic import at {datetime.now() + interval.timedelta()}")
 
     def is_chat_enabled(self, chat, chat_types=None):
         if chat.id in self.additional_chats:
@@ -559,11 +639,19 @@ def main():
         loop = telegram_reader.client.loop
 
         if arguments.command == "import-history":
-            loop.run_until_complete(telegram_reader.import_history(arguments.start_date, arguments.chats))
+            start_date = arguments.start_date
+            if start_date:
+                start_date = datetime.strptime(start_date, "%Y-%m-%d")
+
+            loop.run_until_complete(telegram_reader.import_history(start_date, arguments.chats))
         elif arguments.command == "list-chats":
             loop.run_until_complete(telegram_reader.list_chats(arguments.types))
         elif arguments.command == "listen":
             loop.create_task(telegram_reader.listen())
+
+            periodic_import_config = config.get("periodic_import", {})
+            if periodic_import_config.get("interval") is not None:
+                loop.create_task(telegram_reader.periodic_import(periodic_import_config))
 
             try:
                 loop.run_forever()
