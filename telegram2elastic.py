@@ -247,6 +247,8 @@ class MediaConfiguration:
             else:
                 rule.logger.debug("Rule does not match")
 
+        return None
+
 
 class OutputWriter(ABC):
     def __init__(self, config: dict):
@@ -391,12 +393,12 @@ class OutputHandler:
         config_rule = self.media_config.get_rule(message, await message.get_chat())
         if config_rule is None:
             logging.debug(f"Skipping media download for '{full_original_filename}' as no config rule matches (mime_type: {message.file.mime_type})")
-            return
+            return None
 
         download_path = config_rule.get_download_path()
         if download_path is None:
             logging.debug(f"Skipping media download for '{full_original_filename}' as no download path has been configured")
-            return
+            return None
 
         download_path = Path(download_path).expanduser()
 
