@@ -20,7 +20,7 @@ from telethon.tl import types
 from telethon.tl.functions.messages import TranslateTextRequest
 from telethon.tl.patched import Message
 from telethon.tl.types import User, Chat, Channel
-from telethon.tl.types.messages import TranslateResultText
+from telethon.tl.types.messages import TranslateResult
 from telethon.utils import get_display_name
 
 LOG_LEVEL_INFO = 35
@@ -371,8 +371,8 @@ class OutputHandler:
 
         if self.translate_to_lang and message.text:
             try:
-                translate_text_result: TranslateResultText = await message.client(TranslateTextRequest(to_lang=self.translate_to_lang, peer=message.input_sender, msg_id=message.id))
-                translated_text = translate_text_result.text
+                translate_text_result: TranslateResult = await message.client(TranslateTextRequest(to_lang=self.translate_to_lang, peer=message.input_sender, id=[message.id]))
+                translated_text = translate_text_result.result[0].text
             except BaseException as exception:
                 logging.error(f"Unable to translate text '{message.text}' using language '{self.translate_to_lang}': {exception}")
                 translated_text = None
