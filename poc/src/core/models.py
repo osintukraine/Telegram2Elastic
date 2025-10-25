@@ -22,6 +22,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -172,6 +173,8 @@ class Message(Base):
 
     # Indexes
     __table_args__ = (
+        # Unique constraint for data integrity (message_id is only unique within a channel)
+        UniqueConstraint("archive_id", "message_id", name="uq_messages_archive_message"),
         # Compound index for efficient archive queries
         Index("ix_messages_archive_date", "archive_id", "telegram_date"),
         # OSINT filtering index
