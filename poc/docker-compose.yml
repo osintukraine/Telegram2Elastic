@@ -1,5 +1,9 @@
 version: '3.8'
 
+# WARNING: These credentials are for DEVELOPMENT ONLY
+# DO NOT use these credentials in production environments
+# Change all passwords and secrets before deploying to production
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -36,7 +40,7 @@ services:
     volumes:
       - minio_data:/data
     healthcheck:
-      test: ["CMD", "mc", "ready", "local"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
       interval: 10s
       timeout: 5s
       retries: 5
